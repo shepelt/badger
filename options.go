@@ -123,7 +123,26 @@ type Options struct {
 	maxBatchSize  int64 // max batch size in bytes
 
 	maxValueThreshold float64
+
+	OnCompactionStart CompactionEventHandler
+	MaxParallelism    int
 }
+
+type CompactionEvent struct {
+	Level       int
+	NextLevel   int
+	NumSplits   int
+	TopTables   []uint64
+	BotTables   []uint64
+	CompactorID int
+	Adjusted    float64
+	Score       float64
+	Timestamp   time.Time
+	Reason      string
+	Parallelism int
+}
+
+type CompactionEventHandler func(event CompactionEvent)
 
 // DefaultOptions sets a list of recommended options for good performance.
 // Feel free to modify these to suit your needs with the WithX methods.
@@ -472,7 +491,8 @@ func (opt Options) WithBaseTableSize(val int64) Options {
 //
 // LevelSizeMultiplier sets the ratio between the maximum sizes of contiguous levels in the LSM.
 // Once a level grows to be larger than this ratio allowed, the compaction process will be
-//  triggered.
+//
+//	triggered.
 //
 // The default value of LevelSizeMultiplier is 10.
 func (opt Options) WithLevelSizeMultiplier(val int) Options {
@@ -510,7 +530,7 @@ func (opt Options) WithValueThreshold(val int64) Options {
 // and only 1 percent in vlog. The value threshold will be dynamically updated within the range of
 // [ValueThreshold, Options.maxValueThreshold]
 //
-// Say VLogPercentile with 1.0 means threshold will eventually set to Options.maxValueThreshold
+// # Say VLogPercentile with 1.0 means threshold will eventually set to Options.maxValueThreshold
 //
 // The default value of VLogPercentile is 0.0.
 func (opt Options) WithVLogPercentile(t float64) Options {

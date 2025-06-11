@@ -177,7 +177,6 @@ func TestCompaction(t *testing.T) {
 
 			// Set a high discard timestamp so that all the keys are below the discard timestamp.
 			db.SetDiscardTs(10)
-
 			getAllAndCheck(t, db, []keyValVersion{
 				{"foo", "bar", 3, 0}, {"foo", "bar", 2, 0},
 				{"foo", "bar", 1, 0}, {"fooz", "baz", 1, 0},
@@ -274,6 +273,9 @@ func TestCompaction(t *testing.T) {
 
 			// Set a high discard timestamp so that all the keys are below the discard timestamp.
 			db.SetDiscardTs(10)
+			db.opt.OnCompactionStart = func(event CompactionEvent) {
+				t.Logf("Compaction started at level %d with %d splits\n", event.Level, event.NumSplits)
+			}
 
 			getAllAndCheck(t, db, []keyValVersion{
 				{"foo", "bar", 3, 0}, {"foo", "bar", 2, 0}, {"fooz", "baz", 1, 0},

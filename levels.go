@@ -905,7 +905,25 @@ func (s *levelsController) compactBuildTables(
 	}
 
 	res := make(chan *table.Table, 3)
-	inflightBuilders := y.NewThrottle(8 + len(cd.splits))
+	parallelism := 8 + len(cd.splits)
+	// apply parallelism
+	if s.kv.opt.MaxParallelism > 0 && parallelism > s.kv.opt.MaxParallelism {
+		parallelism = s.kv.opt.MaxParallelism
+	}
+
+	inflightBuilders := y.NewThrottle(parallelism)
+	// Subcompact parallelism decided, alert monitoring for high workload incoming.
+	if cd.thisLevel.level >= 1 && s.kv.opt.OnCompactionStart != nil {
+		s.kv.opt.OnCompactionStart(CompactionEvent{
+			Level:       cd.thisLevel.level,
+			NumSplits:   len(cd.splits),
+			Timestamp:   time.Now(),
+			Reason:      "deep-compaction",
+			Adjusted:    cd.p.adjusted,
+			Parallelism: parallelism,
+		})
+	}
+
 	for _, kr := range cd.splits {
 		// Initiate Do here so we can register the goroutines for buildTables too.
 		if err := inflightBuilders.Do(); err != nil {
