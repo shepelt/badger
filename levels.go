@@ -913,14 +913,17 @@ func (s *levelsController) compactBuildTables(
 
 	inflightBuilders := y.NewThrottle(parallelism)
 	// Subcompact parallelism decided, alert monitoring for high workload incoming.
-	if cd.thisLevel.level >= 1 && s.kv.opt.OnCompactionStart != nil {
-		s.kv.opt.OnCompactionStart(CompactionEvent{
+	if s.kv.opt.OnCompaction != nil && cd.thisLevel.level != 0 {
+		s.kv.opt.OnCompaction(CompactionEvent{
 			Level:       cd.thisLevel.level,
+			NextLevel:   cd.nextLevel.level,
+			LastLevel:   s.lastLevel().level,
 			NumSplits:   len(cd.splits),
 			Timestamp:   time.Now(),
-			Reason:      "deep-compaction",
+			Reason:      "compaction",
 			Adjusted:    cd.p.adjusted,
 			Parallelism: parallelism,
+			Start:       true,
 		})
 	}
 
@@ -970,6 +973,21 @@ func (s *levelsController) compactBuildTables(
 	sort.Slice(newTables, func(i, j int) bool {
 		return y.CompareKeys(newTables[i].Biggest(), newTables[j].Biggest()) < 0
 	})
+
+	if s.kv.opt.OnCompaction != nil && cd.thisLevel.level != 0 {
+		s.kv.opt.OnCompaction(CompactionEvent{
+			Level:       cd.thisLevel.level,
+			NextLevel:   cd.nextLevel.level,
+			LastLevel:   s.lastLevel().level,
+			NumSplits:   len(cd.splits),
+			Timestamp:   time.Now(),
+			Reason:      "compaction",
+			Adjusted:    cd.p.adjusted,
+			Parallelism: parallelism,
+			Start:       false,
+		})
+	}
+
 	return newTables, func() error { return decrRefs(newTables) }, nil
 }
 

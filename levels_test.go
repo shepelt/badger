@@ -273,7 +273,7 @@ func TestCompaction(t *testing.T) {
 
 			// Set a high discard timestamp so that all the keys are below the discard timestamp.
 			db.SetDiscardTs(10)
-			db.opt.OnCompactionStart = func(event CompactionEvent) {
+			db.opt.OnCompaction = func(event CompactionEvent) {
 				t.Logf("Compaction started at level %d with %d splits\n", event.Level, event.NumSplits)
 			}
 

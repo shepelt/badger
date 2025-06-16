@@ -124,22 +124,22 @@ type Options struct {
 
 	maxValueThreshold float64
 
-	OnCompactionStart CompactionEventHandler
-	MaxParallelism    int
+	OnCompaction   CompactionEventHandler
+	MaxParallelism int
 }
 
 type CompactionEvent struct {
 	Level       int
 	NextLevel   int
 	NumSplits   int
-	TopTables   []uint64
-	BotTables   []uint64
+	LastLevel   int
 	CompactorID int
 	Adjusted    float64
 	Score       float64
 	Timestamp   time.Time
 	Reason      string
 	Parallelism int
+	Start       bool
 }
 
 type CompactionEventHandler func(event CompactionEvent)
