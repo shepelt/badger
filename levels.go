@@ -629,7 +629,7 @@ func (s *levelsController) checkOverlap(tables []*table.Table, lev int) bool {
 // concurrently, only iterating over the provided key range, generating tables.
 // This speeds up the compaction significantly.
 func (s *levelsController) subcompact(it y.Iterator, kr keyRange, cd compactDef,
-	inflightBuilders *y.Throttle, createTableInflightBuilders *y.Throttle, res chan<- *table.Table) {
+	inflightBuilders *y.Throttle, res chan<- *table.Table) {
 
 	// Check overlap of the top level with the levels which are not being
 	// compacted in this compaction.
@@ -829,15 +829,13 @@ func (s *levelsController) subcompact(it y.Iterator, kr keyRange, cd compactDef,
 			continue
 		}
 		numBuilds++
-		if err := createTableInflightBuilders.Do(); err != nil {
-			// if err := inflightBuilders.Do(); err != nil {
+		if err := inflightBuilders.Do(); err != nil {
 			// Can't return from here, until I decrRef all the tables that I built so far.
 			break
 		}
 		go func(builder *table.Builder, fileID uint64) {
 			var err error
-			defer createTableInflightBuilders.Done(err)
-			// defer inflightBuilders.Done(err)
+			defer inflightBuilders.Done(err)
 			defer builder.Close()
 
 			var tbl *table.Table
@@ -907,22 +905,13 @@ func (s *levelsController) compactBuildTables(
 	}
 
 	res := make(chan *table.Table, 3)
-	parallelism := 4 + len(cd.splits)/2
+	parallelism := 8 + len(cd.splits)
 	// apply parallelism
 	if s.kv.opt.MaxParallelism > 0 && parallelism > s.kv.opt.MaxParallelism {
 		parallelism = s.kv.opt.MaxParallelism
 	}
 
 	inflightBuilders := y.NewThrottle(parallelism)
-
-	createTableParallelism := 4 + len(cd.splits)/2
-	// apply parallelism
-	if s.kv.opt.MaxCreateTableParallelism > 0 && createTableParallelism > s.kv.opt.MaxCreateTableParallelism {
-		createTableParallelism = s.kv.opt.MaxCreateTableParallelism
-	}
-
-	createTableInflightBuilders := y.NewThrottle(createTableParallelism)
-
 	// Subcompact parallelism decided, alert monitoring for high workload incoming.
 	if s.kv.opt.OnCompaction != nil && cd.thisLevel.level != 0 {
 		s.kv.opt.OnCompaction(CompactionEvent{
@@ -948,7 +937,7 @@ func (s *levelsController) compactBuildTables(
 			defer inflightBuilders.Done(nil)
 			it := table.NewMergeIterator(newIterator(), false)
 			defer it.Close()
-			s.subcompact(it, kr, cd, inflightBuilders, createTableInflightBuilders, res)
+			s.subcompact(it, kr, cd, inflightBuilders, res)
 		}(kr)
 	}
 
@@ -964,10 +953,6 @@ func (s *levelsController) compactBuildTables(
 
 	// Wait for all table builders to finish and also for newTables accumulator to finish.
 	err := inflightBuilders.Finish()
-	if err == nil {
-		err = createTableInflightBuilders.Finish()
-	}
-
 	close(res)
 	wg.Wait() // Wait for all tables to be picked up.
 
