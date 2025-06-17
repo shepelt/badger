@@ -124,8 +124,9 @@ type Options struct {
 
 	maxValueThreshold float64
 
-	OnCompaction   CompactionEventHandler
-	MaxParallelism int
+	OnCompaction              CompactionEventHandler
+	MaxParallelism            int
+	MaxCreateTableParallelism int
 }
 
 type CompactionEvent struct {
