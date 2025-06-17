@@ -1088,13 +1088,19 @@ type compactDef struct {
 func (s *levelsController) addSplits(cd *compactDef) {
 	cd.splits = cd.splits[:0]
 
+	MaxSplits := 5.0
+	// apply parallelism
+	if s.kv.opt.MaxSplits > 0 && MaxSplits > s.kv.opt.MaxSplits {
+		MaxSplits = s.kv.opt.MaxSplits
+	}
+
 	// Let's say we have 10 tables in cd.bot and min width = 3. Then, we'll pick
 	// 0, 1, 2 (pick), 3, 4, 5 (pick), 6, 7, 8 (pick), 9 (pick, because last table).
 	// This gives us 4 picks for 10 tables.
 	// In an edge case, 142 tables in bottom led to 48 splits. That's too many splits, because it
 	// then uses up a lot of memory for table builder.
 	// We should keep it so we have at max 5 splits.
-	width := int(math.Ceil(float64(len(cd.bot)) / 5.0))
+	width := int(math.Ceil(float64(len(cd.bot)) / MaxSplits))
 	if width < 3 {
 		width = 3
 	}

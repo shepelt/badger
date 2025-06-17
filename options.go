@@ -126,6 +126,7 @@ type Options struct {
 
 	OnCompaction   CompactionEventHandler
 	MaxParallelism int
+	MaxSplits      float64
 }
 
 type CompactionEvent struct {
