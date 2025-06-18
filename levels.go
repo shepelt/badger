@@ -631,6 +631,10 @@ func (s *levelsController) checkOverlap(tables []*table.Table, lev int) bool {
 func (s *levelsController) subcompact(it y.Iterator, kr keyRange, cd compactDef,
 	inflightBuilders *y.Throttle, res chan<- *table.Table) {
 
+	// soft throttle/yield options
+	throttlingInterval := uint64(s.kv.opt.ThrottlingInterval)
+	throttlingSleepDuration := time.Duration(int(s.kv.opt.ThrottlingSleepDuration)) * time.Millisecond
+
 	// Check overlap of the top level with the levels which are not being
 	// compacted in this compaction.
 	hasOverlap := s.checkOverlap(cd.allTables(), cd.nextLevel.level+1)
@@ -780,6 +784,12 @@ func (s *levelsController) subcompact(it y.Iterator, kr keyRange, cd compactDef,
 				}
 			}
 			numKeys++
+
+			// soft throttling
+			if throttlingInterval > 0 && numKeys%throttlingInterval == 0 {
+				time.Sleep(throttlingSleepDuration) // soft yield to prevent goroutine starvation
+			}
+
 			var vp valuePointer
 			if vs.Meta&bitValuePointer > 0 {
 				vp.Decode(vs.Value)

@@ -124,9 +124,11 @@ type Options struct {
 
 	maxValueThreshold float64
 
-	OnCompaction   CompactionEventHandler
-	MaxParallelism int
-	MaxSplits      float64
+	OnCompaction            CompactionEventHandler
+	MaxParallelism          int
+	MaxSplits               float64
+	ThrottlingInterval      int64
+	ThrottlingSleepDuration int64
 }
 
 type CompactionEvent struct {
